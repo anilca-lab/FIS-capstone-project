@@ -1,0 +1,133 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+This file includes code to clean the job vacancy headers scraped from the online
+job portal, Indeed. It drops the duplicate vacancies - based on their ids - and
+re-attampts to scrape the missing job vacancy headers i.e. title field in
+particular from the job vacancy descriptions.      
+"""
+import pymongo
+import pandas as pd
+from bs4 import BeautifulSoup
+import requests
+import math
+import numpy as np
+import re
+import os
+import scraping
+from nltk.corpus import stopwords
+
+os.chdir('/Users/flatironschol/FIS-Projects/Capstone/FIS-capstone-project')
+"""
+The following code was run only once to drop duplicate vacancies that already
+existed in the Indeed-job-vacancies database. 
+"""
+#myclient = pymongo.MongoClient('mongodb://127.0.0.1:27017/')
+##myclient.admin.command('copydb', 
+##                       fromdb = 'Indeed-job-vacancies', 
+##                       todb = 'Backup-Indeed-job-vacancies')  
+#myclient.drop_database('Indeed-job-vacancies')
+#mydb = myclient['Indeed-job-vacancies']
+#mycollection = mydb['Job-headings']
+#mycollection.create_index([('jk', pymongo.ASCENDING)], unique=True)
+#my_backup_db = myclient['Backup-1-9-20-Indeed-job-vacancies']
+#my_backup_collection = my_backup_db['Job-headings']
+#for doc in my_backup_collection.find({}):
+#    try:
+#        mycollection.insert_one(doc)
+#    except:
+#        print('DUPLICATE VACANCY')
+
+
+"""
+The following function scrapes job vacancy titles from vacancy descriptions
+for missing values. Originally, titles have been scraped from the vacancy headers.   
+"""
+def scrape_missing_titles():
+    myclient = pymongo.MongoClient('mongodb://127.0.0.1:27017/')
+    mydb = myclient['Indeed-job-vacancies']
+    mycollection = mydb['Job-headings']
+    jk_list = list(mycollection.find({'title': None}, {'jk': 1}))
+    title_list = []
+    for item in jk_list:
+        jk = item['jk']
+        soup = scraping.get_soup(type = 'desc', jk = jk)
+        if soup != None:
+            title = soup.find('meta', attrs = {'id': 'indeed-share-message'})
+            if title != None:
+                title = title['content']
+            else:
+                title = soup.find('p', attrs = {'class': 'job-title'})
+                if title != None:
+                    title = title.text
+                else:
+                    title = soup.find('title')
+                    if title != None:
+                        title = title.text
+                    else:
+                        print('ERROR EXTRACTING THE TITLE USING VARIOUS TAG')
+            if title != None:
+                title_dict = {'jk': jk, 'title': title}
+                title_list.append(title_dict)
+                mycollection.update_one({'jk': jk}, {'$set': {'title': title}})
+        else:
+            print('ERROR WITH GETTING THE SOUP OBJECT')       
+    return title_list
+
+# updated_nas = scrape_missing_titles()  
+
+"""
+The following code was run only once to add date and MSA code to the existing
+vacancies in the database
+"""
+#myclient = pymongo.MongoClient('mongodb://127.0.0.1:27017/')
+#mydb = myclient['Indeed-job-vacancies']
+#mycollection = mydb['Job-headings']
+#mycollection.update_many({'date': None}, {'$set': {'date': '01-06-20'}})
+#mycollection.update_many({'msa': None}, {'$set': {'msa': '47900'}})
+
+"""
+The following creates a list of tokens to be dropped in addition to the usual
+stop words.
+"""
+def create_stop_words():
+    stopwords_list = stopwords.words('english')
+    with open('../data/adjectives.txt', 'r') as file:
+        adjective_list = file.readlines()
+    adjective_list = [re.sub(r'^\s+|\s+$|^\ufeff', '', adjective.lower()) for adjective in adjective_list]
+    stopwords_list.extend(adjective_list)
+    df = pd.read_excel('../data/list2_Sep_2018.xls', skiprows = 2, header = 0)
+    location_list = [str(location).split(',')[0].replace('-', ' ').lower() for location in df['CBSA Title']]
+    location_list.extend([str(location).lower() for location in df['Principal City Name']])
+    location_list = list(set(location_list))
+    location_list = [location for location in location_list if len(location.split(' ')) == 1]
+    stopwords_list.extend(location_list)
+    return stopwords_list
+
+def substitute_words(tokenized_job_title_list):
+    # This function makes word-by-word substitutions (See: word_substitutes.csv)
+    # For each row, everything in the second to last column will be substituted with the first column
+    # Example, one row reads "assistant | assistants | asst | asst. | assts"
+    # If any word is "assistants", "asst." or "assts" is found, it will be substituted with simply "assistant"    
+    df = pd.read_csv('../data/word_substitutes.csv', header = None, encoding='cp437')
+    alternative_tokens = np.array(df.iloc[:, 1:5])
+    base_tokens = np.array(df.iloc[:, 0])
+    substituted_tokenized_job_title_list = []
+    for tokenized_job_title in tokenized_job_title_list:
+        substituted_tokenized_job_title = []
+        for token in tokenized_job_title:   
+            i = np.where(alternative_tokens == token)[0]
+            try:
+                new_token = base_tokens[i]
+            except:
+                new_token = token
+        substituted_tokenized_job_title.append(new_token)
+    substituted_tokenized_job_title_list.append(substituted_tokenized_job_title)
+    return substituted_tokenized_job_title_list
+
+soc_2010 = pd.read_excel('../data/soc_2010_direct_match_title_file.xls', skip)    
+onet_alternate_titles = pd.read_csv('https://www.onetcenter.org/dl_files/database/db_24_1_text/Alternate%20Titles.txt', sep = '\t')
+onet_alternate_titles['soc_2'] = [code.split('-')[0] for code in onet_alternate_titles['O*NET-SOC Code']]
+onet_alternate_titles['soc_6'] = [code.split('.')[0].replace('-','') for code in onet_alternate_titles['O*NET-SOC Code']]
+onet_duplicated_titles = onet_alternate_titles[onet_alternate_titles['Alternate Title'].duplicated(keep = False)]
+test3 = onet_duplicated_titles.groupby(['Alternate Title', 'soc_6']).count()
