@@ -24,7 +24,7 @@ def create_loc_list():
     using the Census Bureau CBSA codes.
     """
     areas_df = pd.read_excel('area_definitions_m2018.xlsx')
-    metro_df = areas_df.loc[areas_df['May 2018 MSA code '].isin([35620, 31080, 16980, 19100, 26420, 33100, 37980, 12060, 14460, 47900])]
+    metro_df = areas_df.loc[areas_df['May 2018 MSA code '].isin([35620, 31080, 16980, 19100, 26420, 33100, 37980, 12060, 71650, 47900])]
     county_list = list(metro_df['County name (or Township name for the New England states)'] + ' ' + metro_df['State abbreviation'])
     code_list = metro_df['May 2018 MSA code ']
     return county_list, code_list
