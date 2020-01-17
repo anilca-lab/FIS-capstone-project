@@ -25,8 +25,11 @@ def create_loc_list():
     """
     areas_df = pd.read_excel('area_definitions_m2018.xlsx')
     #metro_df = areas_df.loc[areas_df['May 2018 MSA code '].isin([35620, 31080, 16980, 19100, 26420, 33100, 37980, 12060, 71650, 47900])]
-    metro_df = areas_df.loc[areas_df['May 2018 MSA code '].isin([71650])]
-    county_list = list(metro_df['County name (or Township name for the New England states)'] + ' ' + metro_df['State abbreviation'])
+    #metro_df = areas_df.loc[(areas_df['May 2018 MSA code '] == 47900) & (areas_df['County code'].isin([510, 600, 610, 630, 683, 685]))]
+    metro_df = areas_df.loc[areas_df['May 2018 MSA code '].isin([38060, 41860, 40140, 19820, 42660, 33460, 41740, 45300, 19740, 41180, 12580, 36740, 16740, 41700, 38900, 40900, 38300, 29820, 17140, 12420, 28140, 17980, 17460, 26900])]
+    pattern = re.compile(r'(\s+city)|(\s+town)')
+    metro_df['county'] = [pattern.sub('', county) for county in metro_df['County name (or Township name for the New England states)']]
+    county_list = list(metro_df['county'] + ' ' + metro_df['State abbreviation'])
     code_list = metro_df['May 2018 MSA code ']
     return county_list, code_list
 
@@ -148,7 +151,7 @@ def scrape_job_vacancies():
     from above. The output are the job headers and descriptions recorded in 
     MongoDB/Amazon Document DB.
     """
-    myclient = pymongo.MongoClient('mongodb://anilca:occupational2020@docdb-2020-01-15-20-21-28.cluster-cwumlwnktm8n.us-east-1.docdb.amazonaws.com:27017/?ssl=true&ssl_ca_certs=rds-combined-ca-bundle.pem&replicaSet=rs0')
+    myclient = pymongo.MongoClient(f'mongodb://anilca:{SECRET_KEY}@docdb-2020-01-15-20-21-28.cluster-cwumlwnktm8n.us-east-1.docdb.amazonaws.com:27017/?ssl=true&ssl_ca_certs=rds-combined-ca-bundle.pem&replicaSet=rs0')
     mydb = myclient['Indeed-job-vacancies']
     mycollection = mydb['Job-headings']
     result = mycollection.create_index([('jk', pymongo.ASCENDING)], unique=True)
