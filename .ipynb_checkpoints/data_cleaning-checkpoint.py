@@ -23,14 +23,14 @@ os.chdir('/Users/flatironschol/FIS-Projects/Capstone/FIS-capstone-project')
 The following code was run only once to drop duplicate vacancies that already
 existed in the Indeed-job-vacancies database. 
 """
-#myclient = pymongo.MongoClient('mongodb://127.0.0.1:27017/')
-##myclient.admin.command('copydb', 
-##                       fromdb = 'Indeed-job-vacancies', 
-##                       todb = 'Backup-Indeed-job-vacancies')  
-#myclient.drop_database('Indeed-job-vacancies')
-#mydb = myclient['Indeed-job-vacancies']
-#mycollection = mydb['Job-headings']
-#mycollection.create_index([('jk', pymongo.ASCENDING)], unique=True)
+# myclient = pymongo.MongoClient('mongodb://127.0.0.1:27017/')
+# myclient.admin.command('copydb', 
+#                       fromdb = 'Indeed-job-vacancies', 
+#                       todb = 'Backup-Indeed-job-vacancies-1-17-20')  
+# myclient.drop_database('Indeed-job-vacancies')
+# mydb = myclient['Indeed-job-vacancies']
+# mycollection = mydb['Job-headings']
+# mycollection.create_index([('jk', pymongo.ASCENDING)], unique=True)
 #my_backup_db = myclient['Backup-1-9-20-Indeed-job-vacancies']
 #my_backup_collection = my_backup_db['Job-headings']
 #for doc in my_backup_collection.find({}):
@@ -81,11 +81,28 @@ def scrape_missing_titles():
 The following code was run only once to add date and MSA code to the existing
 vacancies in the database
 """
-#myclient = pymongo.MongoClient('mongodb://127.0.0.1:27017/')
-#mydb = myclient['Indeed-job-vacancies']
-#mycollection = mydb['Job-headings']
-#mycollection.update_many({'date': None}, {'$set': {'date': '01-06-20'}})
-#mycollection.update_many({'msa': None}, {'$set': {'msa': '47900'}})
+# myclient = pymongo.MongoClient('mongodb://127.0.0.1:27017/')
+# mydb = myclient['Indeed-job-vacancies']
+# mycollection = mydb['Job-headings']
+# mycollection.update_many({'date': None}, {'$set': {'date': '01-06-20'}})
+# mycollection.update_many({'msa': None}, {'$set': {'msa': '47900'}})
+
+"""
+The following code was run only once to put the newly scraped vacancies to the
+local database
+"""
+# myclient = pymongo.MongoClient('mongodb://127.0.0.1:27017/')
+# mydb = myclient['Indeed-job-vacancies']
+# mycollection = mydb['Job-headings']
+# df = pd.read_csv('indeed_df.csv')
+# df = df.drop(columns = ['Unnamed: 0', '_id'])
+# post = df.to_dict(orient = 'records')
+# duplicate = 0
+# for p in post:
+#     try:
+#         mycollection.insert_one(p)
+#     except:
+#         duplicate += 1
 
 """
 The following creates a list of tokens to be dropped in addition to the usual
@@ -93,6 +110,7 @@ stop words.
 """
 def create_stop_words():
     stopwords_list = stopwords.words('english')
+    stopwords_list.append('and')
     with open('../data/adjectives.txt', 'r') as file:
         adjective_list = file.readlines()
     adjective_list = [re.sub(r'^\s+|\s+$|^\ufeff', '', adjective.lower()) for adjective in adjective_list]
