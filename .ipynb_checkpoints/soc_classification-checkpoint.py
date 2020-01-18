@@ -31,6 +31,30 @@ def vectorize_title(wv, dim, stopped_tokenized_titles_list):
         vectorized_title_list.append(vectorized_title)
     return vectorized_title_list
 
+def find_most_similar(wv, dim, stopped_tokenized_indeed_titles_list, stopped_tokenized_soc_titles_list):
+    vectorized_indeed_titles_list = vectorize_title(wv, dim, stopped_tokenized_indeed_titles_list)
+    vectorized_soc_titles_list = vectorize_title(wv, dim, stopped_tokenized_soc_titles_list)
+    similarity_matrix = 1 - distance.cdist(vectorized_indeed_titles_list, vectorized_soc_titles_list, 'cosine')
+    print(similarity_matrix[0])
+    masked_similarity_matrix = np.ma.masked_invalid(similarity_matrix)
+    max_similarity_list = np.amax(masked_similarity_matrix, axis = 1)
+    max_similarity_index_list = np.argmax(masked_similarity_matrix, axis = 1)
+    return max_similarity_list, max_similarity_index_list  
+    
+def assign_code(indeed_titles_df, soc_titles_df, soc_index_list, cosine_score_list):
+    soc_titles_list = []
+    soc_codes_list = []
+    for i in soc_index_list:
+        try:
+            soc_titles_list.append(soc_titles_df.iloc[i].title)
+            soc_codes_list.append(soc_titles_df.iloc[i].soc_6)
+        except:
+            print(soc_titles_df.iloc[i].title, soc_titles_df.iloc[i].soc_6)
+    indeed_titles_df['soc_title'] = soc_titles_list
+    indeed_titles_df['soc_code'] = soc_codes_list
+    indeed_titles_df['cosine_similarity'] = cosine_score_list
+    return indeed_titles_df
+    
 """
 most_similar_titles = []
 for i in range(len(indeed_vectors_list)):
