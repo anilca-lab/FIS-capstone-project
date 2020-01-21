@@ -9,6 +9,7 @@ import streamlit as st
 import pandas as pd
 from nltk import word_tokenize
 from gensim.models.keyedvectors import KeyedVectors
+import plotly.figure_factory as ff
 from data_cleaning import create_stop_words, clean_soc_titles, stop_tokenized_titles, substitute_words 
 from soc_classification import find_most_similar
 
@@ -49,10 +50,30 @@ def get_actual_soc():
     actual_soc_df = six_dig_df.merge(two_dig_df, how = 'inner', on = 'soc_code_2')
     return actual_soc_df
     
+@st.cache
+def get_existing_vacancies():
+    vacancies_df = pd.read_csv('vacancies.csv')
+    return vacancies_df
+
+@st.cache
+def get_fips():
+    fips_df = pd.read_csv('')
+    return fips_df
+
+def plot_map(family):
+    vacancies_df = get_existing_vacancies()
+    family_df = vacancies_df.loc[vacancies_df.soc_code_6 == family]
+    fips_df = get_fips()
+    df = family_df.merge(fips_df, how = 'left', on = ['msa'])
+    fips = df.fips
+    
+    fig = ff.create_choropleth(fips=fips, values=values)
+    return fig
+    
 def main():
     st.title('Find the Family of a Job')
     title = st.text_input('Enter a job title:')
-    if title != None:
+    if title.strip() != '':
         wv = get_pretrained_model()
         soc_titles_df = get_soc_titles()
         stopwords_list = get_stopwords()
@@ -65,10 +86,17 @@ def main():
         soc_code_6 = soc_titles_df.iloc[max_similarity_index_list[0]].soc_6
         soc_code_6 = soc_code_6[0:6]+'0'
         soc_title = actual_soc_df.loc[actual_soc_df.soc_code_6 == soc_code_6]
-        if st.checkbox('Detailed breakdown'):   
-            st.write(soc_title.iloc[0, 1])
-        else:
-            st.write(soc_title.iloc[0, 3])
-
+        family = soc_title.iloc[0, 1]
+        extended_family = soc_title.iloc[0, 3]
+        soc_code_2 = soc_code_6[0:2]
+        cousins = actual_soc_df.loc[actual_soc_df.soc_code_2 == soc_code_2]
+        cousins = cousins.iloc[:, 1]
+        cousins = cousins.rename(columns = {'soc_title_6': 'All occupations in the same extended family'})
+        st.write('**Family:**', family)
+        st.write('**Extended family:**', extended_family)
+        st.table(cousins)
+        st.write(f'**Here is how the demand for {family} varies across major metropolitan areas:**')
+        
+            
 if __name__ == '__main__':
     main()
