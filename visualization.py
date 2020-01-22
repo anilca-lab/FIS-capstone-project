@@ -36,7 +36,7 @@ def tokenize_soc_titles(soc_titles_df, stopwords_list):
 def get_pretrained_model():
 #    print(f'3 {time.perf_counter()}')
 #    wv = KeyedVectors.load_word2vec_format('../data/GoogleNews-vectors-negative300.bin.gz', binary=True)
-    model = Word2Vec.load('model2_large_corpus.model')
+    model = Word2Vec.load('../data/model2_large_corpus.model')
     wv = model.wv
     return wv
 
@@ -81,8 +81,8 @@ def plot_map(family):
     return fig
     
 def main():
-    page = st.sidebar.selectbox("Choose a page", ['Classification', 'Exploration'])
-    if page == 'Classification':
+    page = st.sidebar.selectbox("Choose a task:", ['Classify', 'Visualize', 'Test yourself'])
+    if page == 'Classify':
         st.title('Find the Family of a Job')
         title = st.text_input('Enter a job title:')
         if title.strip() != '':
@@ -93,7 +93,7 @@ def main():
             tokenized_title_list = [word_tokenize(title)]
             stopped_tokenized_title_list = stop_tokenized_titles(tokenized_title_list, stopwords_list)
             stopped_tokenized_title_list = substitute_words(stopped_tokenized_title_list)
-            max_similarity_list, max_similarity_index_list = find_most_similar(wv, 600, stopped_tokenized_title_list, stopped_tokenized_soc_titles_list)
+            max_similarity_index_list = find_most_similar(wv, 600, stopped_tokenized_title_list, stopped_tokenized_soc_titles_list)
             actual_soc_df = get_actual_soc()
             soc_code_6 = soc_titles_df.iloc[max_similarity_index_list[0]].soc_6
             soc_code_6 = soc_code_6[0:6]+'0'
@@ -107,6 +107,35 @@ def main():
             st.write('**Family:**', family)
             st.write('**Extended family:**', extended_family)
             st.write(cousins)
+    elif page == 'Test yourself':
+        st.title('Test Yourself against the Machine')
+        job_titles = [None, 'Data Scientist', 'Movie Producer', 'Journalist', 'Party Hostess', 'Piano Instructor']
+        title = st.sidebar.selectbox("Select a job title", job_titles, 0)
+        if title != None:
+            st.subheader(title)
+            actual_soc_df = get_actual_soc()
+            soc_title_2_list = [None]
+            soc_title_2_list.extend(actual_soc_df.soc_title_2.unique())
+            soc_title_2 = st.sidebar.selectbox("Select extended family", soc_title_2_list, 0)
+            if soc_title_2 != None:
+                soc_title_6_list = [None]
+                soc_title_6_list.extend(actual_soc_df.loc[actual_soc_df.soc_title_2 == soc_title_2].soc_title_6.unique())
+                soc_title_6 = st.sidebar.selectbox("Select family", soc_title_6_list, 0)
+                if soc_title_6 != None:
+                    st.write('**Your prediction:**', soc_title_6)
+                    wv = get_pretrained_model()
+                    soc_titles_df = get_soc_titles()
+                    stopwords_list = get_stopwords()
+                    stopped_tokenized_soc_titles_list = tokenize_soc_titles(soc_titles_df, stopwords_list)        
+                    tokenized_title_list = [word_tokenize(title)]
+                    stopped_tokenized_title_list = stop_tokenized_titles(tokenized_title_list, stopwords_list)
+                    stopped_tokenized_title_list = substitute_words(stopped_tokenized_title_list)
+                    max_similarity_index_list = find_most_similar(wv, 600, stopped_tokenized_title_list, stopped_tokenized_soc_titles_list)
+                    soc_code_6 = soc_titles_df.iloc[max_similarity_index_list[0]].soc_6
+                    soc_code_6 = soc_code_6[0:6]+'0'
+                    soc_title = actual_soc_df.loc[actual_soc_df.soc_code_6 == soc_code_6]
+                    family = soc_title.iloc[0, 1]
+                    st.write('**Machine prediction:**', family)
     else:
         actual_soc_df = get_actual_soc()
         soc_title_2_list = actual_soc_df.soc_title_2.unique()

@@ -27,14 +27,22 @@ def vectorize_title(wv, dim, stopped_tokenized_titles_list):
     return vectorized_title_list
 
 def find_most_similar(wv, dim, stopped_tokenized_indeed_titles_list, stopped_tokenized_soc_titles_list):
+    """
+    This function computes cosine similarity between the vacancy titles and 
+    the standard occupational titles and returns the highest similarity score
+    and the index.
+    """
     vectorized_indeed_titles_list = vectorize_title(wv, dim, stopped_tokenized_indeed_titles_list)
     vectorized_soc_titles_list = vectorize_title(wv, dim, stopped_tokenized_soc_titles_list)
+    print('starting similarity')
     similarity_matrix = 1 - distance.cdist(vectorized_indeed_titles_list, vectorized_soc_titles_list, 'cosine')
-    print(similarity_matrix[0])
+    print('starting masking')
     masked_similarity_matrix = np.ma.masked_invalid(similarity_matrix)
-    max_similarity_list = np.amax(masked_similarity_matrix, axis = 1)
+    #max_similarity_list = np.amax(masked_similarity_matrix, axis = 1)
+    print('starting argmax')
     max_similarity_index_list = np.argmax(masked_similarity_matrix, axis = 1)
-    return max_similarity_list, max_similarity_index_list  
+    #return max_similarity_list, max_similarity_index_list
+    return max_similarity_index_list
     
 def assign_code(indeed_titles_df, soc_titles_df, soc_index_list, cosine_score_list):
     soc_titles_list = []
@@ -49,20 +57,18 @@ def assign_code(indeed_titles_df, soc_titles_df, soc_index_list, cosine_score_li
     indeed_titles_df['soc_code'] = soc_codes_list
     indeed_titles_df['cosine_similarity'] = cosine_score_list
     return indeed_titles_df
-    
-"""
-most_similar_titles = []
-for i in range(len(indeed_vectors_list)):
-    highest_cosine = 0
-    highest_j = None
-    for j in range(len(onet_vectors_list)):
-        cosine = cosine_similarity([indeed_vectors_list[i]], [onet_vectors_list[j]])
-        if cosine > highest_cosine:
-            highest_cosine = cosine
-            highest_j = j
-    most_similar_dict = {'indeed_title': indeed_titles[i], 
-                         'onet_title': onet_titles[highest_j],
-                         'cosine': highest_cosine}
-    print(most_similar_dict)
-    most_similar_titles.append(most_similar_dict)
-"""
+
+def drop_duplicate_tokenized_titles(stopped_tokenized_titles_list):
+    """
+    This function drop duplicates from titles after they are cleaned.
+    """
+    titles_list = []
+    for tokenized_title in stopped_tokenized_titles_list: 
+        title = ''
+        for token in tokenized_title:
+            title += token + ' '
+        titles_list.append(title.rstrip())
+    titles_almost_orig_df = pd.DataFrame(titles_list)
+    titles_df = titles_almost_orig_df.drop_duplicates()
+    stopped_tokenized_titles_list = [word_tokenize(title) for title in titles_df[0]]
+    return titles_almost_orig_df, titles_df, stopped_tokenized_titles_list
