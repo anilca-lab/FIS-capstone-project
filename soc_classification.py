@@ -38,11 +38,12 @@ def find_most_similar(wv, dim, stopped_tokenized_indeed_titles_list, stopped_tok
     similarity_matrix = 1 - distance.cdist(vectorized_indeed_titles_list, vectorized_soc_titles_list, 'cosine')
     print('starting masking')
     masked_similarity_matrix = np.ma.masked_invalid(similarity_matrix)
-    #max_similarity_list = np.amax(masked_similarity_matrix, axis = 1)
+    print('starting amax')
+    max_similarity_list = np.amax(masked_similarity_matrix, axis = 1)
     print('starting argmax')
     max_similarity_index_list = np.argmax(masked_similarity_matrix, axis = 1)
     #return max_similarity_list, max_similarity_index_list
-    return max_similarity_index_list
+    return max_similarity_list, max_similarity_index_list
     
 def assign_code(indeed_titles_df, soc_titles_df, soc_index_list, cosine_score_list):
     soc_titles_list = []

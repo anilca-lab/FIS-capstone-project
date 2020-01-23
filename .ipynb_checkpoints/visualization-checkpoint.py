@@ -7,6 +7,7 @@ Created on Wed Jan 15 22:27:08 2020
 """
 import streamlit as st
 import pandas as pd
+import numpy as np
 from nltk import word_tokenize
 from gensim.models.keyedvectors import KeyedVectors
 from gensim.models import Word2Vec
@@ -56,28 +57,36 @@ def get_actual_soc():
     actual_soc_df = six_dig_df.merge(two_dig_df, how = 'inner', on = 'soc_code_2')
     return actual_soc_df
     
-@st.cache
+@st.cache(allow_output_mutation = True)
 def get_existing_vacancies():
     classified_vacancies_df = pd.read_csv('classified_vacancies.csv')
     return classified_vacancies_df
 
-@st.cache
+@st.cache(allow_output_mutation = True)
 def get_fips():
-    fips_df = pd.read_excel('list1_Sep_2018.xls', skiprows = 2)
+    fips_df = pd.read_excel('list1_Sep_2018.xls', skiprows = 2, dtype = {'CBSA Code': str,
+                                                                         'FIPS State Code': str,
+                                                                         'FIPS County Code': str})
     fips_df = fips_df[['CBSA Code', 'FIPS State Code', 'FIPS County Code']]
-    fips_df['fips'] = [state + county for state, county in zip(fips_df['FIPS State Code'], fips_df['FIPS County Code'])]
+    #fips_df['state'] = ['0' + state if len(state) == 1 else state for state in fips_df['FIPS State Code']]
+    #fips_df['county'] = ['00' + state if len(state) == 1 else '0' + state if len(state) == 2 else state for state in fips_df['FIPS County Code']]
+    fips_df['fips'] = fips_df['FIPS State Code'] + fips_df['FIPS County Code']
     fips_df = fips_df.drop(columns = ['FIPS State Code', 'FIPS County Code'])
-    fips_df.rename(columns = {'CBSA Code': 'msa'})
+    fips_df = fips_df.rename(columns = {'CBSA Code': 'msa'})
     return fips_df
 
 def plot_map(family):
     classified_vacancies_df = get_existing_vacancies()
+    classified_vacancies_df['msa'] = [str(msa)[0:5] for msa in classified_vacancies_df.msa]
     family_df = classified_vacancies_df.loc[classified_vacancies_df.soc_code_6 == family]
+    family_df = family_df.groupby(['msa']).count()[['title']].reset_index()
     fips_df = get_fips()
-    df = family_df.merge(fips_df, how = 'inner', on = ['msa'])
-    fips = df.groupby(['fips']).fips
-    values = df.groupby(['fips']).fips.count()
-    fig = ff.create_choropleth(fips=fips, values=values)
+    family_df = family_df.merge(fips_df, how = 'inner', on = 'msa')
+    fips = family_df.fips
+    values = family_df.title
+    endpts = list(np.mgrid[min(values):max(values):5j])
+    fig = ff.create_choropleth(fips=fips, values=values, binning_endpoints=endpts, legend_title='Number of vacancies', state_outline={'width': 1})
+    fig.layout.template = None
     return fig
     
 def main():
@@ -93,7 +102,7 @@ def main():
             tokenized_title_list = [word_tokenize(title)]
             stopped_tokenized_title_list = stop_tokenized_titles(tokenized_title_list, stopwords_list)
             stopped_tokenized_title_list = substitute_words(stopped_tokenized_title_list)
-            max_similarity_index_list = find_most_similar(wv, 600, stopped_tokenized_title_list, stopped_tokenized_soc_titles_list)
+            max_similarity_list, max_similarity_index_list = find_most_similar(wv, 600, stopped_tokenized_title_list, stopped_tokenized_soc_titles_list)
             actual_soc_df = get_actual_soc()
             soc_code_6 = soc_titles_df.iloc[max_similarity_index_list[0]].soc_6
             soc_code_6 = soc_code_6[0:6]+'0'
@@ -109,41 +118,38 @@ def main():
             st.write(cousins)
     elif page == 'Test yourself':
         st.title('Test Yourself against the Machine')
-        job_titles = [None, 'Data Scientist', 'Movie Producer', 'Journalist', 'Party Hostess', 'Piano Instructor']
-        title = st.sidebar.selectbox("Select a job title", job_titles, 0)
-        if title != None:
-            st.subheader(title)
-            actual_soc_df = get_actual_soc()
-            soc_title_2_list = [None]
-            soc_title_2_list.extend(actual_soc_df.soc_title_2.unique())
-            soc_title_2 = st.sidebar.selectbox("Select extended family", soc_title_2_list, 0)
-            if soc_title_2 != None:
-                soc_title_6_list = [None]
-                soc_title_6_list.extend(actual_soc_df.loc[actual_soc_df.soc_title_2 == soc_title_2].soc_title_6.unique())
-                soc_title_6 = st.sidebar.selectbox("Select family", soc_title_6_list, 0)
-                if soc_title_6 != None:
-                    st.write('**Your prediction:**', soc_title_6)
-                    wv = get_pretrained_model()
-                    soc_titles_df = get_soc_titles()
-                    stopwords_list = get_stopwords()
-                    stopped_tokenized_soc_titles_list = tokenize_soc_titles(soc_titles_df, stopwords_list)        
-                    tokenized_title_list = [word_tokenize(title)]
-                    stopped_tokenized_title_list = stop_tokenized_titles(tokenized_title_list, stopwords_list)
-                    stopped_tokenized_title_list = substitute_words(stopped_tokenized_title_list)
-                    max_similarity_index_list = find_most_similar(wv, 600, stopped_tokenized_title_list, stopped_tokenized_soc_titles_list)
-                    soc_code_6 = soc_titles_df.iloc[max_similarity_index_list[0]].soc_6
-                    soc_code_6 = soc_code_6[0:6]+'0'
-                    soc_title = actual_soc_df.loc[actual_soc_df.soc_code_6 == soc_code_6]
-                    family = soc_title.iloc[0, 1]
-                    st.write('**Machine prediction:**', family)
-    else:
+        job_titles = ['Data Scientist', 'Movie Producer', 'Journalist', 'Party Hostess', 'Piano Instructor']
+        title2 = st.sidebar.selectbox("Select a job title", job_titles, 0)
+        st.subheader(title2)
         actual_soc_df = get_actual_soc()
         soc_title_2_list = actual_soc_df.soc_title_2.unique()
-        st.title('Occupational Demand across Major Metropolitan Areas')
         soc_title_2 = st.sidebar.selectbox("Select extended family", soc_title_2_list, 0)
         soc_title_6_list = actual_soc_df.loc[actual_soc_df.soc_title_2 == soc_title_2].soc_title_6.unique()
         soc_title_6 = st.sidebar.selectbox("Select family", soc_title_6_list, 0)
-        soc_code_6 = actual_soc_df.loc[actual_soc_df.soc_title_6 == soc_title_6].soc_code_6.unique()
+        st.write('**Your prediction:**', soc_title_6)
+        if st.button('Click to see the machine prediction'):
+            wv = get_pretrained_model()
+            soc_titles_df = get_soc_titles()
+            stopwords_list = get_stopwords()
+            stopped_tokenized_soc_titles_list = tokenize_soc_titles(soc_titles_df, stopwords_list)        
+            tokenized_title_list = [word_tokenize(title2)]
+            stopped_tokenized_title_list = stop_tokenized_titles(tokenized_title_list, stopwords_list)
+            stopped_tokenized_title_list = substitute_words(stopped_tokenized_title_list)
+            max_similarity_list, max_similarity_index_list = find_most_similar(wv, 600, stopped_tokenized_title_list, stopped_tokenized_soc_titles_list)
+            soc_code_6 = soc_titles_df.iloc[max_similarity_index_list[0]].soc_6
+            soc_code_6 = soc_code_6[0:6]+'0'
+            soc_title = actual_soc_df.loc[actual_soc_df.soc_code_6 == soc_code_6]
+            family = soc_title.iloc[0, 1]
+            st.write('**Machine prediction:**', family)
+    else:
+        actual_soc_df = get_actual_soc()
+        soc_title_2_list = actual_soc_df.soc_title_2.unique()
+        st.title('Labor Demand across Major Metropolitan Areas')
+        soc_title_2 = st.sidebar.selectbox("Select extended family", soc_title_2_list, 0)
+        soc_title_6_list = actual_soc_df.loc[actual_soc_df.soc_title_2 == soc_title_2].soc_title_6.unique()
+        soc_title_6 = st.sidebar.selectbox("Select family", soc_title_6_list, 0)
+        soc_code_6 = actual_soc_df.loc[actual_soc_df.soc_title_6 == soc_title_6].soc_code_6.unique()[0]
+        st.subheader(soc_title_6)
         fig = plot_map(soc_code_6)
         st.plotly_chart(fig)
             
