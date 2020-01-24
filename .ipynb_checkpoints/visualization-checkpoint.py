@@ -59,7 +59,7 @@ def get_actual_soc():
     
 @st.cache(allow_output_mutation = True)
 def get_existing_vacancies():
-    classified_vacancies_df = pd.read_csv('classified_vacancies.csv')
+    classified_vacancies_df = pd.read_csv('classified_vacancies_upd.csv')
     return classified_vacancies_df
 
 @st.cache(allow_output_mutation = True)
@@ -85,7 +85,7 @@ def plot_map(family):
     fips = family_df.fips
     values = family_df.title
     endpts = list(np.mgrid[min(values):max(values):5j])
-    fig = ff.create_choropleth(fips=fips, values=values, binning_endpoints=endpts, legend_title='Number of vacancies', state_outline={'width': 1})
+    fig = ff.create_choropleth(fips=fips, values=values, binning_endpoints=endpts, legend_title='Number of vacancies', round_legend_values=True, state_outline={'width': 1})
     fig.layout.template = None
     return fig
     
@@ -118,7 +118,7 @@ def main():
             st.write(cousins)
     elif page == 'Test yourself':
         st.title('Test Yourself against the Machine')
-        job_titles = ['Data Scientist', 'Movie Producer', 'Journalist', 'Party Hostess', 'Piano Instructor']
+        job_titles = ['Cashier', 'Data Scientist', 'Customer Account Advisor', 'Piano Instructor', 'AMP Hostess', '2020 Summer Games Internship']
         title2 = st.sidebar.selectbox("Select a job title", job_titles, 0)
         st.subheader(title2)
         actual_soc_df = get_actual_soc()
@@ -126,8 +126,8 @@ def main():
         soc_title_2 = st.sidebar.selectbox("Select extended family", soc_title_2_list, 0)
         soc_title_6_list = actual_soc_df.loc[actual_soc_df.soc_title_2 == soc_title_2].soc_title_6.unique()
         soc_title_6 = st.sidebar.selectbox("Select family", soc_title_6_list, 0)
-        st.write('**Your prediction:**', soc_title_6)
-        if st.button('Click to see the machine prediction'):
+        st.write('**Your classification:**', soc_title_6)
+        if st.button('Click to see the machine classification'):
             wv = get_pretrained_model()
             soc_titles_df = get_soc_titles()
             stopwords_list = get_stopwords()
@@ -140,7 +140,7 @@ def main():
             soc_code_6 = soc_code_6[0:6]+'0'
             soc_title = actual_soc_df.loc[actual_soc_df.soc_code_6 == soc_code_6]
             family = soc_title.iloc[0, 1]
-            st.write('**Machine prediction:**', family)
+            st.write('**Machine classification:**', family)
     else:
         actual_soc_df = get_actual_soc()
         soc_title_2_list = actual_soc_df.soc_title_2.unique()
