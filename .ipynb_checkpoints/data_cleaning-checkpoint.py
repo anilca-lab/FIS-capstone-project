@@ -8,17 +8,12 @@ particular from the job vacancy descriptions.
 """
 import pymongo
 import pandas as pd
-from bs4 import BeautifulSoup
-import requests
-import math
 import numpy as np
 import re
-import os
 import scraping
 from nltk.corpus import stopwords
 from nltk import word_tokenize
 
-os.chdir('/Users/flatironschol/FIS-Projects/Capstone/FIS-capstone-project')
 """
 The following code was run only once to drop duplicate vacancies that already
 existed in the Indeed-job-vacancies database. 

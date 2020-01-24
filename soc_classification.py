@@ -10,7 +10,6 @@ from gensim.models import Word2Vec
 from gensim.test.utils import get_tmpfile
 from gensim.models.keyedvectors import KeyedVectors
 from scipy.spatial import distance
-import multiprocessing
 import data_cleaning
 
 def vectorize_title(wv, dim, stopped_tokenized_titles_list):
